@@ -2,11 +2,15 @@
 
 namespace Verclam\SmartFetchBundle\Attributes;
 
+use Error;
+use Verclam\SmartFetchBundle\Fetcher\FilterPager\DTO\AbstractFilterPagerDTO;
+
 abstract class SmartFetch
 {
     private string|int|null $queryValue;
     public array $enableFilters = [];
     public array $disableFilters = [];
+    private ?AbstractFilterPagerDTO $filterPager = null;
 
     public function __construct(
         private ?string         $queryName,
@@ -14,9 +18,11 @@ abstract class SmartFetch
         private ?string         $argumentName = null,
         private bool            $collection = false,
         private ?string         $entityManager = null,
+        public ?string          $filterPagerClass = null,
         private ?array          $options = [],
     )
     {
+     $this->validateFilterPagerClass();
      $this->initOptions($options);
     }
 
@@ -29,6 +35,21 @@ abstract class SmartFetch
 
         if (array_key_exists('disableFilters', $options)) {
             $this->disableFilters = $options['disableFilters'];
+        }
+    }
+
+    private function validateFilterPagerClass(): void
+    {
+        $filterPagerClassname = $this->filterPagerClass;
+
+        if ($filterPagerClassname && !is_a($filterPagerClassname, AbstractFilterPagerDTO::class, true)) {
+            throw new Error(
+                sprintf(
+                    'FilterPagerClass must be a %s but got %s',
+                    AbstractFilterPagerDTO::class,
+                    $filterPagerClassname
+                )
+            );
         }
     }
 
@@ -95,10 +116,22 @@ abstract class SmartFetch
     public static function expect($object): static
     {
         if (!is_a($object, static::class)) {
-            throw new \Error(sprintf('Object must be a %s but got %s', static::class, $object::class));
+            throw new Error(sprintf('Object must be a %s but got %s', static::class, $object::class));
         }
 
         return $object;
+    }
+
+    public function getFilterPager(): ?AbstractFilterPagerDTO
+    {
+        return $this->filterPager;
+    }
+
+    public function setFilterPager(?AbstractFilterPagerDTO $filterPager): static
+    {
+        $this->filterPager = $filterPager;
+
+        return $this;
     }
     
     abstract public function getMappers(): array|string;
